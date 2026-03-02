@@ -1,0 +1,31 @@
+# Security Questionnaire - CloudTrack
+
+## Data Protection Questions
+
+1. Do you encrypt data at rest?
+2. What encryption standard do you use?
+3. Where are your servers located?
+4. Is multi-factor authentication required for employees?
+
+## Access Control Questions
+
+5. Do you have role-based access control implemented?
+6. What are the different access levels in your organization?
+7. Are access logs maintained and reviewed?
+
+## Backup & Disaster Recovery
+
+8. Are daily automated backups performed?
+9. What is your backup retention policy?
+10. What is your disaster recovery plan and RTO?
+
+## Security Practices
+
+11. Do you perform regular security audits?
+12. Are employees trained in security practices?
+13. What is your data retention and deletion policy?
+
+## Compliance
+
+14. Are you compliant with GDPR?
+15. What industry standards or certifications do you have?

@@ -1,0 +1,34 @@
+# CloudTrack - Infrastructure Policy
+
+## Hosting Infrastructure
+
+CloudTrack services are hosted on Amazon Web Services (AWS) in the Mumbai region (ap-south-1) for Asian customers and the N. Virginia region (us-east-1) for North American customers. This ensures low latency and compliance with data residency requirements.
+
+## Data Backup
+
+Daily automated backups are performed at 2:00 AM UTC. Backup data is stored in a geographically separate AWS region for disaster recovery.
+
+Backup Retention Policy:
+- Daily backups: Retained for 7 days
+- Weekly backups: Retained for 4 weeks
+- Monthly backups: Retained for 12 months
+
+## Database Technology
+
+PostgreSQL is used as the primary database with read replicas for high availability. Database connections use SSL certificates for encryption.
+
+## Server Security
+
+All servers run on Linux with hardened security configurations. Automatic security patches are applied monthly during scheduled maintenance windows.
+
+## Disaster Recovery
+
+Recovery Time Objective (RTO): 4 hours
+Recovery Point Objective (RPO): 1 hour
+
+We conduct quarterly disaster recovery drills to ensure effectiveness.
+
+---
+
+**Policy Version:** 3.0
+**Last Updated:** February 2024

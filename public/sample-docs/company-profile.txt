@@ -1,0 +1,17 @@
+# CloudTrack - Company Profile
+
+**Company Name:** CloudTrack
+
+**Industry:** SaaS (Cloud Software)
+
+**Description:** CloudTrack is a SaaS company that provides project management software for small businesses. It stores customer data in the cloud and follows strict security practices.
+
+## Company Overview
+CloudTrack has been operating since 2020 and serves over 5,000 small to medium-sized businesses globally. The company specializes in providing intuitive project management tools with advanced collaboration features.
+
+## Mission
+To empower small businesses with affordable, secure, and easy-to-use project management tools that help teams collaborate effectively.
+
+---
+
+This document serves as the reference guide for company information and policies.

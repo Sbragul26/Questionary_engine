@@ -27,6 +27,16 @@ export async function POST(request) {
       )
     }
 
+    if (!data.session || !data.user) {
+      console.error('No session or user data returned')
+      return NextResponse.json(
+        { error: 'Login failed - no session' },
+        { status: 500 }
+      )
+    }
+
+    console.log('Login successful for user:', data.user.email)
+
     return NextResponse.json({
       token: data.session.access_token,
       user: { id: data.user.id, email: data.user.email },

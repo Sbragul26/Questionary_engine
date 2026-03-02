@@ -26,16 +26,32 @@ export default function Login() {
       const data = await response.json()
 
       if (!response.ok) {
+        console.error('Login failed:', data)
         setError(data.error || 'Login failed')
+        setLoading(false)
         return
       }
 
+      if (!data.token) {
+        console.error('No token in response:', data)
+        setError('Login failed - no token received')
+        setLoading(false)
+        return
+      }
+
+      console.log('Login successful, setting token and redirecting...')
       localStorage.setItem('token', data.token)
+      // Set cookie for middleware
+      document.cookie = `token=${data.token}; path=/; max-age=86400`
       localStorage.setItem('user', JSON.stringify(data.user))
-      router.push('/dashboard')
+      
+      // Small delay to ensure cookie is set
+      setTimeout(() => {
+        router.push('/dashboard')
+      }, 100)
     } catch (err) {
+      console.error('Login error:', err)
       setError('Login failed. Please try again.')
-    } finally {
       setLoading(false)
     }
   }

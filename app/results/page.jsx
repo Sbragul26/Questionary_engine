@@ -36,11 +36,14 @@ export default function Results() {
 
     try {
       const token = localStorage.getItem('token')
+      const userData = JSON.parse(localStorage.getItem('user') || '{}')
+      const userId = userData.id
       const response = await fetch('/api/save-edits', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${token}`,
+          'X-User-Id': userId,
         },
         body: JSON.stringify({
           answerId: currentData.id,
@@ -68,11 +71,14 @@ export default function Results() {
 
     try {
       const token = localStorage.getItem('token')
+      const userData = JSON.parse(localStorage.getItem('user') || '{}')
+      const userId = userData.id
       const response = await fetch('/api/export', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${token}`,
+          'X-User-Id': userId,
         },
         body: JSON.stringify({
           answerId: currentData.id,

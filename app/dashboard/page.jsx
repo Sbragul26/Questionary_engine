@@ -1,63 +1,89 @@
 'use client'
 
+// Step 1: Import tools we need from React and Next.js
+// useState  → lets us store data that can change (like a variable that updates the screen)
+// useEffect → runs code when the page first loads
 import { useState, useEffect } from 'react'
+
+// useRouter → lets us move to a different page
 import { useRouter } from 'next/navigation'
-import Link from 'next/link'
 
 export default function Dashboard() {
-  const [user, setUser] = useState(null)
-  const [questionnaires, setQuestionnaires] = useState([])
-  const [referenceFiles, setReferenceFiles] = useState([])
-  const [activeTab, setActiveTab] = useState('questionnaire')
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState('')
-  const router = useRouter()
 
+  // --- VARIABLES (State) ---
+  // Think of these like boxes that hold data.
+  // When a box's value changes, the screen automatically updates.
+
+  const [user, setUser] = useState(null)              // Who is logged in?
+  const [questionnaires, setQuestionnaires] = useState([])  // List of uploaded questionnaires
+  const [referenceFiles, setReferenceFiles] = useState([])  // List of uploaded reference docs
+  const [activeTab, setActiveTab] = useState('questionnaire') // Which tab is open?
+  const [loading, setLoading] = useState(false)        // Are we waiting for something?
+  const [error, setError] = useState('')               // Any error message to show?
+
+  const router = useRouter() // Tool to navigate between pages
+
+  // --- ON PAGE LOAD ---
+  // useEffect runs once when the page opens.
+  // We check if the user is logged in by looking for a saved token.
   useEffect(() => {
-    const token = localStorage.getItem('token')
-    const userData = localStorage.getItem('user')
+    const token = localStorage.getItem('token')    // Get saved login token
+    const userData = localStorage.getItem('user')  // Get saved user info
 
     if (!token) {
-      router.push('/login')
+      router.push('/login') // No token? Send them to login page
       return
     }
 
-    setUser(JSON.parse(userData))
+    setUser(JSON.parse(userData)) // Save user info so we can show their name
   }, [router])
 
+  // --- UPLOAD QUESTIONNAIRE ---
+  // This runs when the user picks a questionnaire file
   const handleQuestionnaireUpload = async (e) => {
-    const file = e.target.files?.[0]
-    if (!file) return
+    const file = e.target.files?.[0] // Get the selected file
+    if (!file) return                 // If no file, stop here
 
-    setLoading(true)
-    setError('')
+    setLoading(true)  // Show "loading..." state
+    setError('')      // Clear old errors
 
     try {
+      // FormData is like a package to send files to the server
       const formData = new FormData()
       formData.append('file', file)
 
       const token = localStorage.getItem('token')
+      const userData = JSON.parse(localStorage.getItem('user') || '{}')
+      const userId = userData.id
+
+      // Send the file to our server using fetch (like making a phone call to the server)
       const response = await fetch('/api/upload-questionnaire', {
         method: 'POST',
-        headers: { Authorization: `Bearer ${token}` },
+        headers: { 
+          Authorization: `Bearer ${token}`,
+          'X-User-Id': userId,
+        }, // Prove we're logged in
         body: formData,
       })
 
+      const data = await response.json()
+
       if (!response.ok) {
-        throw new Error('Upload failed')
+        throw new Error(data.error || 'Upload failed') // Show detailed error
       }
 
-      const data = await response.json()
-      setQuestionnaires([...questionnaires, data])
-      setError('')
-      alert('Questionnaire uploaded successfully!')
+      setQuestionnaires([...questionnaires, data])              // Add new file to our list
+      alert('Questionnaire uploaded!')
     } catch (err) {
-      setError('Failed to upload questionnaire')
+      console.error('Upload error:', err)
+      setError(`Could not upload questionnaire: ${err.message}`)
     } finally {
-      setLoading(false)
+      setLoading(false) // Always stop loading, success or not
     }
   }
 
+  // --- UPLOAD REFERENCE DOCUMENT ---
+  // Same idea as above, but for reference documents
   const handleReferenceUpload = async (e) => {
     const file = e.target.files?.[0]
     if (!file) return
@@ -70,29 +96,41 @@ export default function Dashboard() {
       formData.append('file', file)
 
       const token = localStorage.getItem('token')
+      const userData = JSON.parse(localStorage.getItem('user') || '{}')
+      const userId = userData.id
+
       const response = await fetch('/api/upload-reference', {
         method: 'POST',
-        headers: { Authorization: `Bearer ${token}` },
+        headers: { 
+          Authorization: `Bearer ${token}`,
+          'X-User-Id': userId,
+        },
         body: formData,
       })
 
+      const data = await response.json()
+
       if (!response.ok) {
-        throw new Error('Upload failed')
+        throw new Error(data.error || 'Upload failed')
       }
 
-      const data = await response.json()
       setReferenceFiles([...referenceFiles, data])
-      alert('Reference document uploaded successfully!')
+      alert('Reference document uploaded!')
     } catch (err) {
-      setError('Failed to upload reference document')
+      console.error('Upload error:', err)
+      setError(`Could not upload reference document: ${err.message}`)
     } finally {
       setLoading(false)
     }
   }
 
+  // --- GENERATE ANSWERS ---
+  // When user clicks "Generate Answers" for a questionnaire
   const handleGenerateAnswers = async (questionnaireId) => {
+
+    // First, make sure there is at least one reference document
     if (referenceFiles.length === 0) {
-      setError('Please upload at least one reference document first')
+      setError('Please upload a reference document first.')
       return
     }
 
@@ -101,126 +139,142 @@ export default function Dashboard() {
 
     try {
       const token = localStorage.getItem('token')
+      const userData = JSON.parse(localStorage.getItem('user') || '{}')
+      const userId = userData.id
+
+      // Tell the server: "Please generate answers for this questionnaire"
       const response = await fetch('/api/generate', {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
+          'Content-Type': 'application/json', // We're sending JSON data
           Authorization: `Bearer ${token}`,
+          'X-User-Id': userId,
         },
-        body: JSON.stringify({ questionnaireId }),
+        body: JSON.stringify({ questionnaireId }), // Send the questionnaire's ID
       })
 
-      if (!response.ok) {
-        throw new Error('Generation failed')
-      }
+      if (!response.ok) throw new Error('Generation failed')
 
       const data = await response.json()
-      localStorage.setItem('currentAnswers', JSON.stringify(data))
-      router.push('/results')
+      localStorage.setItem('currentAnswers', JSON.stringify(data)) // Save answers
+      router.push('/results') // Go to results page
     } catch (err) {
-      setError('Failed to generate answers')
+      setError('Could not generate answers. Please try again.')
     } finally {
       setLoading(false)
     }
   }
 
+  // --- SHOW LOADING SCREEN ---
+  // If user data isn't loaded yet, show a simple message
   if (!user) {
     return <div>Loading...</div>
   }
 
+  // --- THE SCREEN (what the user sees) ---
   return (
-    <div className="container">
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
+    <div style={{ maxWidth: '800px', margin: '0 auto', padding: '2rem', fontFamily: 'Arial' }}>
+
+      {/* TOP BAR: Title + Welcome message + Logout */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '2rem' }}>
         <h1>Dashboard</h1>
         <div>
-          <span style={{ marginRight: '1rem', color: '#7f8c8d' }}>Welcome, {user.email}</span>
+          <span style={{ marginRight: '1rem', color: 'gray' }}>Welcome, {user.email}</span>
           <button
-            className="button-secondary button-small"
             onClick={() => {
+              // Logout: clear saved data and go to home page
               localStorage.removeItem('token')
               localStorage.removeItem('user')
               router.push('/')
             }}
+            style={{ padding: '0.4rem 1rem', cursor: 'pointer' }}
           >
             Logout
           </button>
         </div>
       </div>
 
-      {error && <div className="error">{error}</div>}
+      {/* ERROR BOX: Only shows if there is an error message */}
+      {error && (
+        <div style={{ background: '#ffe0e0', color: 'red', padding: '1rem', marginBottom: '1rem', borderRadius: '4px' }}>
+          {error}
+        </div>
+      )}
 
-      <div style={{ marginBottom: '2rem', borderBottom: '2px solid #ecf0f1' }}>
+      {/* TABS: Two buttons to switch between sections */}
+      <div style={{ display: 'flex', gap: '1rem', marginBottom: '2rem', borderBottom: '2px solid #ccc', paddingBottom: '0.5rem' }}>
         <button
           onClick={() => setActiveTab('questionnaire')}
           style={{
-            padding: '1rem',
-            border: activeTab === 'questionnaire' ? '2px solid #3498db' : 'none',
-            borderBottom: activeTab === 'questionnaire' ? '2px solid #3498db' : 'none',
-            background: 'none',
+            padding: '0.6rem 1.2rem',
             cursor: 'pointer',
-            color: activeTab === 'questionnaire' ? '#3498db' : '#7f8c8d',
-            fontWeight: activeTab === 'questionnaire' ? 'bold' : 'normal',
+            background: activeTab === 'questionnaire' ? '#3498db' : 'white',
+            color: activeTab === 'questionnaire' ? 'white' : 'black',
+            border: '1px solid #ccc',
+            borderRadius: '4px',
           }}
         >
-          📝 Questionnaire
+          Questionnaire
         </button>
         <button
           onClick={() => setActiveTab('reference')}
           style={{
-            padding: '1rem',
-            border: activeTab === 'reference' ? '2px solid #3498db' : 'none',
-            borderBottom: activeTab === 'reference' ? '2px solid #3498db' : 'none',
-            background: 'none',
+            padding: '0.6rem 1.2rem',
             cursor: 'pointer',
-            color: activeTab === 'reference' ? '#3498db' : '#7f8c8d',
-            fontWeight: activeTab === 'reference' ? 'bold' : 'normal',
+            background: activeTab === 'reference' ? '#3498db' : 'white',
+            color: activeTab === 'reference' ? 'white' : 'black',
+            border: '1px solid #ccc',
+            borderRadius: '4px',
           }}
         >
-          📚 Reference Documents
+          Reference Documents
         </button>
       </div>
 
+      {/* QUESTIONNAIRE TAB CONTENT */}
       {activeTab === 'questionnaire' && (
         <div>
           <h2>Upload Questionnaire</h2>
-          <p style={{ color: '#7f8c8d', marginBottom: '1rem' }}>
-            Upload a questionnaire file (PDF, DOCX, or TXT format)
-          </p>
+          <p style={{ color: 'gray' }}>Accepted formats: PDF, DOCX, TXT</p>
 
-          <div style={{ marginBottom: '2rem' }}>
-            <input
-              type="file"
-              accept=".pdf,.docx,.txt"
-              onChange={handleQuestionnaireUpload}
-              disabled={loading}
-              style={{ marginBottom: '1rem' }}
-            />
-          </div>
+          {/* File input — triggers handleQuestionnaireUpload when a file is chosen */}
+          <input
+            type="file"
+            accept=".pdf,.docx,.txt"
+            onChange={handleQuestionnaireUpload}
+            disabled={loading}
+            style={{ marginBottom: '1.5rem', display: 'block' }}
+          />
 
           <h3>Your Questionnaires</h3>
+
+          {/* If the list is empty, show a message. Otherwise show a table. */}
           {questionnaires.length === 0 ? (
-            <p style={{ color: '#7f8c8d' }}>No questionnaires uploaded yet</p>
+            <p style={{ color: 'gray' }}>No questionnaires uploaded yet.</p>
           ) : (
-            <table className="table">
+            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
               <thead>
-                <tr>
-                  <th>File Name</th>
-                  <th>Uploaded</th>
-                  <th>Action</th>
+                <tr style={{ background: '#f0f0f0', textAlign: 'left' }}>
+                  <th style={{ padding: '0.5rem', border: '1px solid #ddd' }}>File Name</th>
+                  <th style={{ padding: '0.5rem', border: '1px solid #ddd' }}>Uploaded On</th>
+                  <th style={{ padding: '0.5rem', border: '1px solid #ddd' }}>Action</th>
                 </tr>
               </thead>
               <tbody>
+                {/* Loop through each questionnaire and show a row */}
                 {questionnaires.map((q) => (
                   <tr key={q.id}>
-                    <td>{q.file_name}</td>
-                    <td>{new Date(q.created_at).toLocaleDateString()}</td>
-                    <td>
+                    <td style={{ padding: '0.5rem', border: '1px solid #ddd' }}>{q.file_name}</td>
+                    <td style={{ padding: '0.5rem', border: '1px solid #ddd' }}>
+                      {new Date(q.created_at).toLocaleDateString()}
+                    </td>
+                    <td style={{ padding: '0.5rem', border: '1px solid #ddd' }}>
                       <button
-                        className="button-small button-success"
                         onClick={() => handleGenerateAnswers(q.id)}
                         disabled={loading}
+                        style={{ padding: '0.4rem 0.8rem', cursor: 'pointer' }}
                       >
-                        Generate Answers
+                        {loading ? 'Generating...' : 'Generate Answers'}
                       </button>
                     </td>
                   </tr>
@@ -231,39 +285,39 @@ export default function Dashboard() {
         </div>
       )}
 
+      {/* REFERENCE DOCUMENTS TAB CONTENT */}
       {activeTab === 'reference' && (
         <div>
           <h2>Upload Reference Documents</h2>
-          <p style={{ color: '#7f8c8d', marginBottom: '1rem' }}>
-            Upload company documents that will be used to answer questions (PDF, DOCX, or TXT format)
-          </p>
+          <p style={{ color: 'gray' }}>These documents will be used to answer the questionnaire questions.</p>
 
-          <div style={{ marginBottom: '2rem' }}>
-            <input
-              type="file"
-              accept=".pdf,.docx,.txt"
-              onChange={handleReferenceUpload}
-              disabled={loading}
-              style={{ marginBottom: '1rem' }}
-            />
-          </div>
+          <input
+            type="file"
+            accept=".pdf,.docx,.txt"
+            onChange={handleReferenceUpload}
+            disabled={loading}
+            style={{ marginBottom: '1.5rem', display: 'block' }}
+          />
 
           <h3>Your Reference Documents</h3>
+
           {referenceFiles.length === 0 ? (
-            <p style={{ color: '#7f8c8d' }}>No reference documents uploaded yet</p>
+            <p style={{ color: 'gray' }}>No reference documents uploaded yet.</p>
           ) : (
-            <table className="table">
+            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
               <thead>
-                <tr>
-                  <th>File Name</th>
-                  <th>Uploaded</th>
+                <tr style={{ background: '#f0f0f0', textAlign: 'left' }}>
+                  <th style={{ padding: '0.5rem', border: '1px solid #ddd' }}>File Name</th>
+                  <th style={{ padding: '0.5rem', border: '1px solid #ddd' }}>Uploaded On</th>
                 </tr>
               </thead>
               <tbody>
                 {referenceFiles.map((r) => (
                   <tr key={r.id}>
-                    <td>{r.file_name}</td>
-                    <td>{new Date(r.created_at).toLocaleDateString()}</td>
+                    <td style={{ padding: '0.5rem', border: '1px solid #ddd' }}>{r.file_name}</td>
+                    <td style={{ padding: '0.5rem', border: '1px solid #ddd' }}>
+                      {new Date(r.created_at).toLocaleDateString()}
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -271,6 +325,7 @@ export default function Dashboard() {
           )}
         </div>
       )}
+
     </div>
   )
 }

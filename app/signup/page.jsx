@@ -33,6 +33,8 @@ export default function SignUp() {
       // Handle both token and non-token responses
       if (data.token) {
         localStorage.setItem('token', data.token)
+        // Set cookie for middleware
+        document.cookie = `token=${data.token}; path=/; max-age=86400`
       }
       localStorage.setItem('user', JSON.stringify(data.user))
       router.push('/dashboard')

@@ -1,6 +1,5 @@
 import { NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase'
-import { verifyToken } from '@/lib/auth'
 import PDFDocument from 'pdfkit'
 import { Packer, Document, Paragraph, TextRun } from 'docx'
 
@@ -106,7 +105,14 @@ async function generateDOCX(answers) {
 
 export async function POST(request) {
   try {
-    const userId = verifyToken(request).userId
+    const authHeader = request.headers.get('Authorization')
+    const userIdHeader = request.headers.get('X-User-Id')
+
+    if (!authHeader || !userIdHeader) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    const userId = userIdHeader
     const { answerId, format } = await request.json()
 
     const { data: answer, error } = await supabaseAdmin

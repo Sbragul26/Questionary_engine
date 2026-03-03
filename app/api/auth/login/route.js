@@ -3,7 +3,27 @@ import { supabase, supabaseAdmin } from '@/lib/supabase'
 
 export async function POST(request) {
   try {
-    const { email, password } = await request.json()
+    // Ensure content-type is JSON
+    const contentType = request.headers.get('content-type')
+    if (!contentType || !contentType.includes('application/json')) {
+      return NextResponse.json(
+        { error: 'Content-Type must be application/json' },
+        { status: 400 }
+      )
+    }
+
+    let body
+    try {
+      body = await request.json()
+    } catch (parseError) {
+      console.error('JSON parse error:', parseError)
+      return NextResponse.json(
+        { error: 'Invalid JSON in request body' },
+        { status: 400 }
+      )
+    }
+
+    const { email, password } = body
 
     if (!email || !password) {
       return NextResponse.json(

@@ -6,6 +6,11 @@ const protectedRoutes = ['/dashboard', '/results']
 export function middleware(request) {
   const pathname = request.nextUrl.pathname
 
+  // Skip middleware for API routes
+  if (pathname.startsWith('/api')) {
+    return NextResponse.next()
+  }
+
   // Check if route is protected
   if (protectedRoutes.some(route => pathname.startsWith(route))) {
     // Check for token in cookies or headers

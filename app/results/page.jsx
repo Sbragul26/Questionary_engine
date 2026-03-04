@@ -35,29 +35,24 @@ export default function Results() {
     setError('')
 
     try {
-      const token = localStorage.getItem('token')
-      const userData = JSON.parse(localStorage.getItem('user') || '{}')
-      const userId = userData.id
-      const response = await fetch('/api/save-edits', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-          'X-User-Id': userId,
-        },
-        body: JSON.stringify({
-          answerId: currentData.id,
-          updates: editedAnswers,
-        }),
+      // Update local storage instead of sending to server
+      const updatedAnswers = answers.map((answer, index) => {
+        if (editedAnswers[index]) {
+          return { ...answer, answer: editedAnswers[index].answer, edited: true }
+        }
+        return answer
       })
 
-      if (!response.ok) {
-        throw new Error('Failed to save')
-      }
+      // Update localStorage with edited answers
+      localStorage.setItem('currentAnswers', JSON.stringify({
+        ...currentData,
+        answers: updatedAnswers,
+      }))
 
-      const data = await response.json()
+      // Update state
+      setAnswers(updatedAnswers)
       setEditedAnswers({})
-      alert('Edits saved successfully!')
+      alert('Edits saved to your local session!')
     } catch (err) {
       setError('Failed to save edits')
     } finally {
@@ -70,37 +65,90 @@ export default function Results() {
     setError('')
 
     try {
-      const token = localStorage.getItem('token')
-      const userData = JSON.parse(localStorage.getItem('user') || '{}')
-      const userId = userData.id
-      const response = await fetch('/api/export', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-          'X-User-Id': userId,
-        },
-        body: JSON.stringify({
-          answerId: currentData.id,
-          format,
-        }),
+      // Prepare answers (include edited ones)
+      const answersToExport = answers.map((answer, index) => {
+        if (editedAnswers[index]) {
+          return { ...answer, answer: editedAnswers[index].answer, edited: true }
+        }
+        return answer
       })
 
-      if (!response.ok) {
-        throw new Error('Export failed')
+      // Generate export locally instead of server
+      if (format === 'pdf') {
+        await exportPDF(answersToExport)
+      } else if (format === 'docx') {
+        await exportDOCX(answersToExport)
       }
-
-      const blob = await response.blob()
-      const url = window.URL.createObjectURL(blob)
-      const a = document.createElement('a')
-      a.href = url
-      a.download = `questionnaire-answers.${format}`
-      a.click()
     } catch (err) {
+      console.error('Export error:', err)
       setError('Failed to export')
     } finally {
       setLoading(false)
     }
+  }
+
+  // Simple PDF generation
+  const exportPDF = (answersToExport) => {
+    let content = 'QUESTIONNAIRE ANSWERS REPORT\n'
+    content += '=' .repeat(40) + '\n\n'
+
+    answersToExport.forEach((answer, index) => {
+      content += `Q${index + 1}: ${answer.question}\n`
+      content += '-'.repeat(40) + '\n'
+      content += `Answer: ${answer.answer}\n`
+
+      if (answer.citations && answer.citations.length > 0) {
+        content += '\nCitations:\n'
+        answer.citations.forEach((citation) => {
+          content += `  • ${citation.documentName} (${(citation.similarity * 100).toFixed(0)}% match)\n`
+        })
+      }
+
+      if (answer.confidenceScore) {
+        content += `Confidence: ${answer.confidenceScore.level}\n`
+      }
+
+      content += '\n' + '='.repeat(40) + '\n\n'
+    })
+
+    // Download as text file for now (you can install pdfkit for proper PDF)
+    const blob = new Blob([content], { type: 'text/plain' })
+    const url = window.URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `questionnaire-answers-${Date.now()}.txt`
+    a.click()
+  }
+
+  // Simple DOCX generation
+  const exportDOCX = (answersToExport) => {
+    let content = 'QUESTIONNAIRE ANSWERS REPORT\n\n'
+
+    answersToExport.forEach((answer, index) => {
+      content += `Q${index + 1}: ${answer.question}\n`
+      content += `Answer: ${answer.answer}\n`
+
+      if (answer.citations && answer.citations.length > 0) {
+        content += 'Citations:\n'
+        answer.citations.forEach((citation) => {
+          content += `• ${citation.documentName} (${(citation.similarity * 100).toFixed(0)}% match)\n`
+        })
+      }
+
+      if (answer.confidenceScore) {
+        content += `Confidence: ${answer.confidenceScore.level}\n`
+      }
+
+      content += '\n'
+    })
+
+    // Download as text file (docx requires external library)
+    const blob = new Blob([content], { type: 'text/plain' })
+    const url = window.URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `questionnaire-answers-${Date.now()}.txt`
+    a.click()
   }
 
   if (!currentData) {
@@ -153,7 +201,7 @@ export default function Results() {
             }}
           />
 
-          {answer.confidenceScore && (
+          {answer.confidenceScore && answer.confidenceScore.level && (
             <span
               className={`confidence-badge confidence-${answer.confidenceScore.level.toLowerCase()}`}
             >

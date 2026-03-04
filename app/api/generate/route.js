@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase'
-import { extractQuestions } from '@/lib/rag'
+import { extractQuestions, searchRelevantChunks } from '@/lib/rag'
 import { generateAnswer, calculateConfidenceScore } from '@/lib/openai'
 
 export async function POST(request) {
@@ -43,40 +43,39 @@ export async function POST(request) {
       )
     }
 
-    // Combine all reference documents into one context
-    const combinedContext = refDocs
-      .map((doc) => `[Document: ${doc.file_name}]\n${doc.content}`)
-      .join('\n\n---\n\n')
-
-    // Extract questions
+    // Extract questions from questionnaire
     const questions = extractQuestions(questionnaire.content)
 
-    // Generate answers for each question using Gemini's RAG
+    // Generate answers for each question using RAG pipeline
     const answers = []
 
     for (const question of questions) {
       try {
         console.log(`Generating answer for: ${question}`)
         
-        // Use Gemini to search and generate answer from the combined context
-        const answer = await generateAnswer(question, [
-          { content: combinedContext }
-        ])
+        // Search for relevant chunks from reference documents using RAG
+        const relevantChunks = searchRelevantChunks(question, refDocs, 3)
 
-        // Simple heuristic: if answer contains "not found" or is very short, mark confidence as low
-        const isFound = !answer.toLowerCase().includes('not found in references')
-        const confidenceScore = isFound
-          ? { level: 'High', score: 0.8 }
-          : { level: 'Low', score: 0.1 }
+        // Generate answer from relevant chunks
+        const answer = await generateAnswer(question, relevantChunks)
+
+        // Calculate confidence score based on found chunks
+        const confidenceScore = calculateConfidenceScore(relevantChunks)
+
+        // Check if answer was found (not marked as "not found")
+        const isFound = !answer.toLowerCase().includes('not found in the provided')
+          && !answer.toLowerCase().includes('not found in references')
+          && !answer.toLowerCase().includes('information is not available')
+          && answer.length > 20
 
         answers.push({
           question,
           answer,
-          citations: refDocs.map((doc) => ({
-            documentName: doc.file_name,
-            similarity: isFound ? 0.7 : 0.1,
+          citations: relevantChunks.map((chunk) => ({
+            documentName: chunk.documentName,
+            similarity: chunk.similarity,
           })),
-          confidenceScore,
+          confidenceScore: isFound ? confidenceScore : { level: 'Low', score: 0.2 },
         })
       } catch (qError) {
         console.error(`Error processing question "${question}":`, qError.message)
@@ -89,35 +88,23 @@ export async function POST(request) {
       }
     }
 
-    // Save answers
-    const { data: answerResult, error: saveError } = await supabaseAdmin
-      .from('generated_answers')
-      .insert([
-        {
-          user_id: userId,
-          questionnaire_id: questionnaireId,
-          answers_json: answers,
-          created_at: new Date(),
-        },
-      ])
-      .select()
-      .single()
-
-    if (saveError) {
-      return NextResponse.json({ error: 'Failed to save answers' }, { status: 500 })
-    }
-
+    // DO NOT save to database - return fresh answers immediately
+    // This ensures answers reflect current questionnaire and references
     console.log(`Generated ${answers.length} answers successfully`)
 
     return NextResponse.json({
-      id: answerResult.id,
+      id: `temp_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
       answers,
       totalQuestions: questions.length,
       answeredWithCitation: answers.filter(
-        (a) => !a.answer.toLowerCase().includes('not found')
+        (a) => a.answer && a.answer.length > 20 
+          && !a.answer.toLowerCase().includes('error')
+          && !a.answer.toLowerCase().includes('not found')
       ).length,
       notFound: answers.filter((a) =>
-        a.answer.toLowerCase().includes('not found')
+        !a.answer || a.answer.length < 20
+        || a.answer.toLowerCase().includes('not found')
+        || a.answer.toLowerCase().includes('information is not available')
       ).length,
     })
   } catch (error) {

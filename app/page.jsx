@@ -78,16 +78,6 @@ export default function Home() {
         </ol>
       </div>
 
-      {/* SAMPLE COMPANY INFO BOX */}
-      <div style={{ marginTop: '3rem', padding: '1rem', backgroundColor: '#f0f0f0', borderRadius: '4px' }}>
-        <h3>Sample Company: CloudTrack</h3>
-        <p>
-          CloudTrack is a SaaS company providing project management software for small businesses.
-          It stores customer data securely in AWS and follows strict security practices including
-          AES-256 encryption, MFA, and role-based access control.
-        </p>
-      </div>
-
     </div>
   )
 }

@@ -1,3 +1,11 @@
+## Industry
+
+CloudTrack operates in the SaaS (Software as a Service) cybersecurity industry. The company provides cloud-based security monitoring and compliance automation solutions for modern businesses.
+
+## Company Overview
+
+CloudTrack is a fictional SaaS company that helps organizations monitor, manage, and secure their cloud infrastructure. The platform provides automated security assessments, compliance tracking, risk analysis, and structured security questionnaire responses for enterprise clients. CloudTrack is designed to support startups, mid-sized companies, and large enterprises that need reliable cloud security and regulatory compliance management.
+
 ## Features Implemented
 
 ### User Authentication & Access Control
